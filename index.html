@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纸面诗篇：智能弹性海洋排版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap" rel="stylesheet">
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f7f5f0; }
+        #art-canvas { cursor: crosshair; }
+        .ui-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,0.05); transition: transform 0.3s ease; }
+        .hidden-ui { transform: translateX(-105%); }
+    </style>
+</head>
+<body>
+
+    <canvas id="art-canvas"></canvas>
+
+    <div id="ui-container" class="fixed top-6 left-6 ui-panel p-5 rounded-2xl shadow-xl z-10 w-72">
+        <button id="toggle-btn" class="absolute -right-10 top-0 bg-white p-2 rounded-lg shadow-md text-slate-500 hover:text-black">
+            <span id="toggle-icon">◀</span>
+        </button>
+        <h2 class="text-[10px] font-bold text-slate-800 mb-4 tracking-widest uppercase">极致透视排版引擎</h2>
+        <div class="space-y-4 text-[11px] font-medium text-slate-600">
+            <textarea id="text-input" class="w-full h-20 p-2 border border-slate-200 rounded-lg bg-white/50 text-[10px]">THERE ARE DREAMS LIKE WEEDS THAT WILL WRAP AROUND YOUR KNEES</textarea>
+            <div class="space-y-2">
+                <div><label class="flex justify-between">波浪幅度 <span id="val-amp">50</span></label>
+                    <input type="range" id="wave-amp" min="-200" max="200" value="50" class="w-full"></div>
+                <div><label class="flex justify-between">远近透视 <span id="val-size">200</span></label>
+                    <input type="range" id="size-diff" min="10" max="800" value="200" class="w-full"></div>
+                <div><label class="flex justify-between">相对字间距 <span id="val-char-gap">0.5</span></label>
+                    <input type="range" id="char-gap" min="-50" max="200" value="50" class="w-full"></div>
+                <div><label class="flex justify-between">行距比例 <span id="val-line">0.5</span></label>
+                    <input type="range" id="line-spacing" min="-100" max="300" value="50" class="w-full"></div>
+            </div>
+            <button id="apply-btn" class="w-full py-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors">重新渲染</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('art-canvas');
+        const ctx = canvas.getContext('2d');
+        const uiContainer = document.getElementById('ui-container');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const toggleIcon = document.getElementById('toggle-icon');
+        const textInput = document.getElementById('text-input');
+        const applyBtn = document.getElementById('apply-btn');
+
+        let time = 0;
+        let poemText = textInput.value;
+
+        toggleBtn.onclick = () => {
+            uiContainer.classList.toggle('hidden-ui');
+            toggleIcon.innerText = uiContainer.classList.contains('hidden-ui') ? '▶' : '◀';
+        };
+
+        function render() {
+            const dpr = window.devicePixelRatio || 1;
+            const w = window.innerWidth, h = window.innerHeight;
+            if (canvas.width !== w * dpr) {
+                canvas.width = w * dpr; canvas.height = h * dpr;
+                canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+                ctx.scale(dpr, dpr);
+            }
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = "#1034a6";
+            
+            const chars = (poemText + " " + poemText + " " + poemText + " " + poemText + " " + poemText).replace(/\s+/g, '').split('');
+            const maxWidth = w; 
+            const waveAmp = parseInt(document.getElementById('wave-amp').value);
+            const sizeDiff = parseInt(document.getElementById('size-diff').value);
+            const charGapFactor = parseInt(document.getElementById('char-gap').value) / 100;
+            const lineSpacingRatio = parseInt(document.getElementById('line-spacing').value) / 100;
+            
+            document.getElementById('val-amp').innerText = waveAmp;
+            document.getElementById('val-size').innerText = sizeDiff;
+            document.getElementById('val-char-gap').innerText = charGapFactor.toFixed(1);
+            document.getElementById('val-line').innerText = lineSpacingRatio.toFixed(1);
+
+            let lines = [];
+            let currentLine = [];
+            let currentWidth = 0;
+            
+            chars.forEach(char => {
+                ctx.font = `300 20px 'Shadows Into Light', cursive`;
+                const charW = ctx.measureText(char).width;
+                if (currentWidth + charW > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = [char];
+                    currentWidth = charW;
+                } else {
+                    currentLine.push(char);
+                    currentWidth += charW;
+                }
+            });
+            lines.push(currentLine);
+
+            let y = h / 2; // 起始于屏幕垂直中线
+            lines.forEach((line, lineIndex) => {
+                const progress = (y - (h/2)) / (h / 2);
+                const fontSize = 12 + (progress * sizeDiff);
+                ctx.font = `300 ${fontSize}px 'Shadows Into Light', cursive`;
+                
+                const totalWidth = line.reduce((acc, char) => acc + ctx.measureText(char).width, 0);
+                const gap = line.length > 1 ? (maxWidth - totalWidth) / (line.length - 1) : 0;
+                const dynamicGap = Math.max(gap, fontSize * charGapFactor);
+                
+                let x = 0; // 顶住画布边缘
+                line.forEach((char, charIndex) => {
+                    const wave = Math.sin(time + (lineIndex * 0.5 + charIndex) * 0.1) * waveAmp;
+                    ctx.fillText(char, x, y + wave);
+                    x += ctx.measureText(char).width + dynamicGap;
+                });
+                
+                y += fontSize * (1 + lineSpacingRatio);
+            });
+
+            time += 0.01;
+            requestAnimationFrame(render);
+        }
+
+        applyBtn.onclick = () => { poemText = textInput.value.toUpperCase(); };
+        render();
+    </script>
+</body>
+</html>
