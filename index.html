@@ -3,126 +3,1096 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>纸面诗篇：智能弹性海洋排版</title>
+    <title>2.5D 轻盈风铃与漩涡艺术 | Vortex Art</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f7f5f0; }
-        #art-canvas { cursor: crosshair; }
-        .ui-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,0.05); transition: transform 0.3s ease; }
-        .hidden-ui { transform: translateX(-105%); }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -5px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            padding: 0;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.02);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 4px;
+        }
+        .panel-enter {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .panel-leave {
+            transform: translateX(110%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .icon-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
-<body>
+<body class="overflow-hidden m-0 p-0 w-screen h-screen select-none bg-black" id="body-container">
 
-    <canvas id="art-canvas"></canvas>
+    <!-- 交互画布 -->
+    <canvas id="art-canvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
 
-    <div id="ui-container" class="fixed top-6 left-6 ui-panel p-5 rounded-2xl shadow-xl z-10 w-72">
-        <button id="toggle-btn" class="absolute -right-10 top-0 bg-white p-2 rounded-lg shadow-md text-slate-500 hover:text-black">
-            <span id="toggle-icon">◀</span>
+    <!-- 画面左下角：召唤流星雨按钮 -->
+    <div class="fixed bottom-6 left-6 z-40 flex items-center gap-3">
+        <button id="meteor-btn" class="glass-panel px-5 py-3 rounded-full flex items-center gap-2.5 text-xs font-semibold text-gray-800 hover:bg-white hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg cursor-pointer">
+            <span class="text-base animate-bounce">✨</span>
+            <span>召唤轻盈风铃</span>
+            <span class="text-base animate-pulse">🌙</span>
         </button>
-        <h2 class="text-[10px] font-bold text-slate-800 mb-4 tracking-widest uppercase">极致透视排版引擎</h2>
-        <div class="space-y-4 text-[11px] font-medium text-slate-600">
-            <textarea id="text-input" class="w-full h-20 p-2 border border-slate-200 rounded-lg bg-white/50 text-[10px]">THERE ARE DREAMS LIKE WEEDS THAT WILL WRAP AROUND YOUR KNEES</textarea>
-            <div class="space-y-2">
-                <div><label class="flex justify-between">波浪幅度 <span id="val-amp">50</span></label>
-                    <input type="range" id="wave-amp" min="-200" max="200" value="50" class="w-full"></div>
-                <div><label class="flex justify-between">远近透视 <span id="val-size">200</span></label>
-                    <input type="range" id="size-diff" min="10" max="800" value="200" class="w-full"></div>
-                <div><label class="flex justify-between">相对字间距 <span id="val-char-gap">0.5</span></label>
-                    <input type="range" id="char-gap" min="-50" max="200" value="50" class="w-full"></div>
-                <div><label class="flex justify-between">行距比例 <span id="val-line">0.5</span></label>
-                    <input type="range" id="line-spacing" min="-100" max="300" value="50" class="w-full"></div>
+    </div>
+
+    <!-- UI 面板与切换按钮容器 (右上角) -->
+    <div class="fixed top-6 right-6 z-50 flex flex-col items-end">
+        <button id="ui-toggle-btn" class="mb-4 w-12 h-12 glass-panel rounded-full flex items-center justify-center hover:bg-white transition-colors duration-300 focus:outline-none cursor-pointer">
+            <svg id="icon-menu" class="icon-transition absolute w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <svg id="icon-close" class="icon-transition absolute w-5 h-5 text-gray-800 opacity-0 scale-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+
+        <!-- 参数调节面板 -->
+        <div id="ui-panel" class="glass-panel w-[340px] rounded-2xl p-6 transition-all duration-500 ease-out panel-leave custom-scrollbar overflow-y-auto max-h-[82vh]">
+            <h2 class="text-xs font-bold tracking-widest text-gray-500 uppercase mb-5">Vortex Controls</h2>
+            
+            <!-- 环境与视角 -->
+            <div class="space-y-4 mb-5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">水域与视角 (Environment)</label>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 font-medium">背景深色</span>
+                    <input type="color" id="bg-color-1" value="#0032c7">
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 font-medium">背景浅色</span>
+                    <input type="color" id="bg-color-2" value="#0055ff">
+                </div>
+                <div class="space-y-1.5 pt-2 border-t border-gray-200/40">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-indigo-600">
+                        <span>空间视角俯仰 (View Tilt)</span>
+                        <span id="view-tilt-val" class="text-indigo-500 text-xs">0.40</span>
+                    </label>
+                    <input type="range" id="view-tilt" min="0.15" max="0.8" step="0.01" value="0.40">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>漩涡网格流速 (Grid Speed)</span>
+                        <span id="speed-val" class="text-gray-400 text-xs">1.0x</span>
+                    </label>
+                    <input type="range" id="vortex-speed" min="0.1" max="3" step="0.1" value="1.0">
+                </div>
+                <div class="space-y-1.5 pt-2 border-t border-gray-200/40">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-blue-600">
+                        <span>水面漂浮转速 (Water Orbit)</span>
+                        <span id="orbit-speed-val" class="text-blue-500 text-xs">0.4x</span>
+                    </label>
+                    <input type="range" id="orbit-speed" min="0.1" max="2.0" step="0.1" value="0.4">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-blue-600">
+                        <span>水面吸入速率 (Water Pull)</span>
+                        <span id="inward-pull-val" class="text-blue-500 text-xs">0.4x</span>
+                    </label>
+                    <input type="range" id="inward-pull" min="0.1" max="2.0" step="0.1" value="0.4">
+                </div>
             </div>
-            <button id="apply-btn" class="w-full py-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors">重新渲染</button>
+
+            <hr class="border-gray-200/50 mb-5">
+            
+            <!-- 天气系统 -->
+            <div class="space-y-4 mb-5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">天气系统 (Weather)</label>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>下雨强度 (Rain Intensity)</span>
+                        <span id="rain-intensity-val" class="text-gray-400 text-xs">40</span>
+                    </label>
+                    <input type="range" id="rain-intensity" min="0" max="150" step="1" value="40">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>雨滴粗细 (Rain Thickness)</span>
+                        <span id="rain-thickness-val" class="text-gray-400 text-xs">1.5px</span>
+                    </label>
+                    <input type="range" id="rain-thickness" min="0.5" max="5.0" step="0.1" value="1.5">
+                </div>
+            </div>
+
+            <hr class="border-gray-200/50 mb-5">
+
+            <!-- 风铃与透视系统 -->
+            <div class="space-y-4 mb-5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">风铃挂帘阵列 (Chimes)</label>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-pink-600">
+                        <span>风铃旋转速度 (Chime Speed)</span>
+                        <span id="hang-orbit-speed-val" class="text-pink-500 text-xs">1.0x</span>
+                    </label>
+                    <input type="range" id="hang-orbit-speed" min="0.0" max="4.0" step="0.1" value="1.0">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-pink-600">
+                        <span>风铃旋转半径 (Chime Radius)</span>
+                        <span id="hang-radius-val" class="text-pink-500 text-xs">280px</span>
+                    </label>
+                    <input type="range" id="hang-radius" min="100" max="600" step="10" value="280">
+                </div>
+                <div class="space-y-1.5 pt-2 border-t border-gray-200/40">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>流星风铃数量 (Count)</span>
+                        <span id="meteor-count-val" class="text-gray-400 text-xs">80</span>
+                    </label>
+                    <input type="range" id="meteor-count" min="20" max="300" step="5" value="80">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>物体基准大小 (Base Size)</span>
+                        <span id="meteor-size-val" class="text-gray-400 text-xs">20px</span>
+                    </label>
+                    <input type="range" id="meteor-size" min="10" max="60" step="1" value="20">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>风铃悬挂比例 (Hang %)</span>
+                        <span id="meteor-hang-val" class="text-gray-400 text-xs">65%</span>
+                    </label>
+                    <input type="range" id="meteor-hang" min="0" max="100" step="5" value="65">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>挂帘基准高度 (Hang Height)</span>
+                        <span id="hang-height-val" class="text-gray-400 text-xs">260px</span>
+                    </label>
+                    <input type="range" id="hang-height" min="80" max="600" step="10" value="260">
+                </div>
+                
+                <!-- 空间透视调整 -->
+                <div class="space-y-1.5 pt-2 border-t border-gray-200/40">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-indigo-600">
+                        <span>大小深度差距 (Size Gap)</span>
+                        <span id="depth-size-val" class="text-indigo-500 text-xs">25%</span>
+                    </label>
+                    <input type="range" id="depth-size" min="0" max="100" step="5" value="25">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between text-indigo-600">
+                        <span>明暗深度差距 (Opacity Gap)</span>
+                        <span id="depth-opacity-val" class="text-indigo-500 text-xs">35%</span>
+                    </label>
+                    <input type="range" id="depth-opacity" min="0" max="100" step="5" value="35">
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-gray-200/40">
+                    <span class="text-sm text-gray-700 font-medium">物体颜色 (Color)</span>
+                    <input type="color" id="meteor-color" value="#fff096">
+                </div>
+            </div>
+
+            <hr class="border-gray-200/50 mb-5">
+            
+            <!-- 交互与光标 -->
+            <div class="space-y-4 mb-2">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">交互与光标 (Interaction)</label>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>鼠标拨动范围 (Interact Range)</span>
+                        <span id="bounce-range-val" class="text-gray-400 text-xs">1.0x</span>
+                    </label>
+                    <input type="range" id="bounce-range" min="0.1" max="3.0" step="0.1" value="1.0">
+                </div>
+                <div class="space-y-1.5 pt-2 border-t border-gray-200/40">
+                    <span class="text-sm text-gray-700 font-medium block">自定义光标图片 (Upload Cursor)</span>
+                    <input type="file" id="cursor-upload" accept="image/*" class="text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 w-full cursor-pointer">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-sm text-gray-700 font-medium flex justify-between">
+                        <span>光标大小 (Cursor Size)</span>
+                        <span id="cursor-size-val" class="text-gray-400 text-xs">32px</span>
+                    </label>
+                    <input type="range" id="cursor-size" min="16" max="128" step="1" value="32">
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex gap-3 mt-6 mb-2">
+                <button id="reset-canvas-btn" class="flex-1 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:shadow-sm text-xs font-bold text-gray-700 transition-all cursor-pointer">清空画面</button>
+                <button id="reset-params-btn" class="flex-1 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:shadow-sm text-xs font-bold text-gray-700 transition-all cursor-pointer">恢复默认</button>
+            </div>
+
         </div>
     </div>
 
+    <!-- 底部操作提示 -->
+    <div class="fixed bottom-6 right-6 text-white/50 text-[10px] tracking-widest uppercase pointer-events-none hidden md:block">
+        Hold Left Click & Swipe to Push Chimes • Watch objects plunge into the singularity
+    </div>
+
     <script>
-        const canvas = document.getElementById('art-canvas');
-        const ctx = canvas.getContext('2d');
-        const uiContainer = document.getElementById('ui-container');
-        const toggleBtn = document.getElementById('toggle-btn');
-        const toggleIcon = document.getElementById('toggle-icon');
-        const textInput = document.getElementById('text-input');
-        const applyBtn = document.getElementById('apply-btn');
-
-        let time = 0;
-        let poemText = textInput.value;
-
-        toggleBtn.onclick = () => {
-            uiContainer.classList.toggle('hidden-ui');
-            toggleIcon.innerText = uiContainer.classList.contains('hidden-ui') ? '▶' : '◀';
+        const hexToRgbStr = (hex) => {
+            const h = hex.replace('#', '');
+            return `${parseInt(h.substring(0,2), 16)}, ${parseInt(h.substring(2,4), 16)}, ${parseInt(h.substring(4,6), 16)}`;
         };
 
-        function render() {
-            const dpr = window.devicePixelRatio || 1;
-            const w = window.innerWidth, h = window.innerHeight;
-            if (canvas.width !== w * dpr) {
-                canvas.width = w * dpr; canvas.height = h * dpr;
-                canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-                ctx.scale(dpr, dpr);
+        const defaultConfig = {
+            bg1: '#0032c7',
+            bg2: '#0055ff',
+            vortexSpeed: 1.0,
+            orbitSpeed: 0.4,       
+            inwardPull: 0.4,       
+            viewTilt: 0.40,        
+            
+            rainIntensity: 40,     
+            rainThickness: 1.5,    
+            
+            hangOrbitSpeed: 1.0,   
+            hangRadius: 280,       
+
+            depthSize: 25,         
+            depthOpacity: 35,      
+            
+            meteorCount: 80,
+            meteorSize: 20,        
+            hangPercent: 65,
+            hangHeight: 260,      
+            bounceRange: 1.0,     
+            meteorDuration: 4.0,
+            meteorColor: '#fff096',
+            meteorRgb: '255, 240, 150',
+            cursorSize: 32
+        };
+
+        const config = JSON.parse(JSON.stringify(defaultConfig));
+
+        const canvas = document.getElementById('art-canvas');
+        const ctx = canvas.getContext('2d');
+        const uiPanel = document.getElementById('ui-panel');
+        const uiToggleBtn = document.getElementById('ui-toggle-btn');
+        const iconMenu = document.getElementById('icon-menu');
+        const iconClose = document.getElementById('icon-close');
+
+        let width, height, cx, cy;
+        let isPanelOpen = false;
+        
+        const mouse = { 
+            x: -1000, y: -1000, 
+            lastX: -1000, lastY: -1000, 
+            vx: 0, vy: 0, 
+            active: false, isDown: false 
+        };
+        let customCursorImg = null;
+        let cursorImgRatio = 1;
+
+        let meteors = [];
+        let ripples = [];
+        let splashes = [];
+        let rainDrops = []; 
+        let rainAccumulator = 0;
+        
+        let isMeteorShowerActive = false;
+        let meteorShowerTimer = 0;
+        let meteorSpawnAccumulator = 0;
+
+        const random = (min, max) => Math.random() * (max - min) + min;
+
+        // 绘制星月：新增 isSubmerged 参数控制水面覆盖渐变
+        const drawStar = (ctx, x, y, r, alpha, rgbStr, rotation, flipScale, isSubmerged = false) => {
+            ctx.save();
+            ctx.translate(x, y);
+
+            let fillStyle;
+            if (isSubmerged) {
+                // 水面淹没效果：创建基于全局Y轴的垂直渐变，让下半部分隐入水中
+                fillStyle = ctx.createLinearGradient(0, -r, 0, r * 1.5);
+                fillStyle.addColorStop(0, `rgba(${rgbStr}, ${alpha})`);
+                fillStyle.addColorStop(0.3, `rgba(${rgbStr}, ${alpha})`);
+                fillStyle.addColorStop(1, `rgba(${rgbStr}, 0)`);
+            } else {
+                fillStyle = `rgba(${rgbStr}, ${alpha})`;
             }
 
-            ctx.clearRect(0, 0, w, h);
-            ctx.fillStyle = "#1034a6";
+            ctx.rotate(rotation); 
+            ctx.scale(flipScale, 1); 
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) / 180 * Math.PI) * r,
+                          -Math.sin((18 + i * 72) / 180 * Math.PI) * r);
+                ctx.lineTo(Math.cos((54 + i * 72) / 180 * Math.PI) * (r * 0.4),
+                          -Math.sin((54 + i * 72) / 180 * Math.PI) * (r * 0.4));
+            }
+            ctx.closePath();
             
-            const chars = (poemText + " " + poemText + " " + poemText + " " + poemText + " " + poemText).replace(/\s+/g, '').split('');
-            const maxWidth = w; 
-            const waveAmp = parseInt(document.getElementById('wave-amp').value);
-            const sizeDiff = parseInt(document.getElementById('size-diff').value);
-            const charGapFactor = parseInt(document.getElementById('char-gap').value) / 100;
-            const lineSpacingRatio = parseInt(document.getElementById('line-spacing').value) / 100;
-            
-            document.getElementById('val-amp').innerText = waveAmp;
-            document.getElementById('val-size').innerText = sizeDiff;
-            document.getElementById('val-char-gap').innerText = charGapFactor.toFixed(1);
-            document.getElementById('val-line').innerText = lineSpacingRatio.toFixed(1);
+            ctx.fillStyle = fillStyle;
+            ctx.shadowColor = `rgba(${rgbStr}, ${isSubmerged ? 0.2 : 0.8})`;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.restore();
+        };
 
-            let lines = [];
-            let currentLine = [];
-            let currentWidth = 0;
+        const drawMoon = (ctx, x, y, r, alpha, rgbStr, rotation, flipScale, isSubmerged = false) => {
+            ctx.save();
+            ctx.translate(x, y);
             
-            chars.forEach(char => {
-                ctx.font = `300 20px 'Shadows Into Light', cursive`;
-                const charW = ctx.measureText(char).width;
-                if (currentWidth + charW > maxWidth) {
-                    lines.push(currentLine);
-                    currentLine = [char];
-                    currentWidth = charW;
-                } else {
-                    currentLine.push(char);
-                    currentWidth += charW;
+            let fillStyle;
+            if (isSubmerged) {
+                fillStyle = ctx.createLinearGradient(0, -r, 0, r * 1.5);
+                fillStyle.addColorStop(0, `rgba(${rgbStr}, ${alpha})`);
+                fillStyle.addColorStop(0.3, `rgba(${rgbStr}, ${alpha})`);
+                fillStyle.addColorStop(1, `rgba(${rgbStr}, 0)`);
+            } else {
+                fillStyle = `rgba(${rgbStr}, ${alpha})`;
+            }
+
+            ctx.rotate(-Math.PI / 6 + rotation);
+            ctx.scale(flipScale, 1); 
+            ctx.beginPath();
+            ctx.arc(0, 0, r, Math.PI * 0.5, Math.PI * 1.5, false);
+            ctx.arc(r * 0.4, 0, r * 0.85, Math.PI * 1.5, Math.PI * 0.5, true);
+            ctx.closePath();
+            
+            ctx.fillStyle = fillStyle;
+            ctx.shadowColor = `rgba(${rgbStr}, ${isSubmerged ? 0.2 : 0.8})`;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.restore();
+        };
+
+        const project2D5 = (r, angle, z = 0) => {
+            const maxRadius = Math.max(80, 500); 
+            const normR = r / maxRadius;
+            const funnelDepth = 180 * Math.exp(-normR * 2.8);
+            const yScale = config.viewTilt + 0.12 * Math.min(1, normR);
+            const x2d = cx + Math.cos(angle) * r;
+            const y2d = cy + Math.sin(angle) * (r * yScale);
+
+            return {
+                x: x2d,
+                y: y2d - z + funnelDepth,
+                z: z,
+                baseY: y2d + funnelDepth,
+                funnelDepth: funnelDepth,
+                depthScale: Math.max(0.2, Math.min(1.2, 0.35 + 0.65 * normR))
+            };
+        };
+
+        class RainDrop {
+            constructor() {
+                this.x = random(0, width);
+                this.startY = random(-100, height);
+                this.y = this.startY;
+                this.z = random(600, 1000);
+                this.speed = random(1200, 1800);
+                this.length = random(15, 35);
+                this.active = true;
+            }
+            update(dt) {
+                this.z -= this.speed * dt;
+                this.x += this.speed * 0.03 * dt; 
+                if (this.z <= 0) {
+                    this.active = false;
+                    if (Math.random() < 0.1) {
+                        ripples.push(new Ripple(this.x, this.y, random(8, 20)));
+                    }
                 }
-            });
-            lines.push(currentLine);
-
-            let y = h / 2; // 起始于屏幕垂直中线
-            lines.forEach((line, lineIndex) => {
-                const progress = (y - (h/2)) / (h / 2);
-                const fontSize = 12 + (progress * sizeDiff);
-                ctx.font = `300 ${fontSize}px 'Shadows Into Light', cursive`;
-                
-                const totalWidth = line.reduce((acc, char) => acc + ctx.measureText(char).width, 0);
-                const gap = line.length > 1 ? (maxWidth - totalWidth) / (line.length - 1) : 0;
-                const dynamicGap = Math.max(gap, fontSize * charGapFactor);
-                
-                let x = 0; // 顶住画布边缘
-                line.forEach((char, charIndex) => {
-                    const wave = Math.sin(time + (lineIndex * 0.5 + charIndex) * 0.1) * waveAmp;
-                    ctx.fillText(char, x, y + wave);
-                    x += ctx.measureText(char).width + dynamicGap;
-                });
-                
-                y += fontSize * (1 + lineSpacingRatio);
-            });
-
-            time += 0.01;
-            requestAnimationFrame(render);
+            }
+            draw(ctx) {
+                if (!this.active) return;
+                ctx.save();
+                ctx.beginPath();
+                const bottomX = this.x;
+                const bottomY = this.y - this.z;
+                const topX = this.x - this.length * 0.03;
+                const topY = bottomY - this.length;
+                ctx.moveTo(bottomX, bottomY);
+                ctx.lineTo(topX, topY);
+                ctx.strokeStyle = `rgba(255, 255, 255, 0.25)`;
+                ctx.lineWidth = config.rainThickness;
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
-        applyBtn.onclick = () => { poemText = textInput.value.toUpperCase(); };
-        render();
+        class Ripple {
+            constructor(x, y, maxR = 60) {
+                this.x = x;
+                this.y = y;
+                this.radius = 3;
+                this.alpha = 0.85;
+                this.life = 1.0;
+            }
+            update(dt) {
+                this.radius += 45 * dt;
+                this.life -= dt * 1.5;
+                this.alpha = Math.max(0, this.life);
+            }
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y, this.radius, this.radius * config.viewTilt, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha * 0.75})`;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class SplashParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = random(-40, 40);
+                this.vy = random(-60, -20);
+                this.radius = random(1.5, 3.5);
+                this.alpha = 0.9;
+            }
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vy += 300 * dt;
+                this.alpha -= dt * 2.5;
+            }
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(0.5, this.radius), 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class MeteorParticle {
+            constructor() {
+                const maxWaterR = Math.max(width, height) * 0.8;
+                this.isHanging = Math.random() * 100 < config.hangPercent;
+                this.radius = this.isHanging ? random(config.hangRadius * 0.6, config.hangRadius * 1.1) : random(120, maxWaterR);
+                this.angle = random(0, Math.PI * 2);
+                this.z = random(1000, 2000); 
+                
+                this.baseZOffset = random(-25, 25);
+                this.targetZ = this.isHanging ? (config.hangHeight + this.baseZOffset) : 0; 
+                // 变慢：更为轻盈、宛若羽毛缓慢下落的初始速度
+                this.zVelocity = -random(250, 500); 
+
+                this.nodes = [];
+                const nodeCount = this.isHanging ? Math.floor(random(2, 5.8)) : 1;
+                for (let i = 0; i < nodeCount; i++) {
+                    this.nodes.push({
+                        heightRatio: i === 0 ? 0 : random(0.1, 0.85), 
+                        shape: Math.random() > 0.5 ? 'star' : 'moon',
+                        // 细致区分：落在水里的物体尺寸显著更小 (0.3~0.6)
+                        sizeRatio: this.isHanging ? (i === 0 ? random(0.8, 1.2) : random(0.4, 0.9)) : random(0.3, 0.6),
+                        selfAngle: random(0, Math.PI * 2),
+                        selfAngularVelocity: random(-1.0, 1.0)
+                    });
+                }
+                
+                this.state = 'falling';
+                this.active = true;
+                this.threadAlpha = 0; 
+
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.vX = 0;
+                this.vY = 0;
+                
+                this.ctrlX = 0;
+                this.ctrlY = 0;
+                this.ctrlVx = 0;
+                this.ctrlVy = 0;
+            }
+
+            update(dt) {
+                if (!this.active) return;
+                
+                const basePos = project2D5(this.radius, this.angle, this.z);
+
+                this.nodes.forEach(node => {
+                    node.selfAngle += node.selfAngularVelocity * dt;
+                });
+
+                // 核心：下坠过程中就已经开始旋转
+                if (this.state === 'falling' || this.state === 'hanging') {
+                    const angularSpeed = config.hangOrbitSpeed * 0.3;
+                    this.angle += angularSpeed * dt;
+                }
+
+                if (this.state === 'falling') {
+                    this.z += this.zVelocity * dt;
+                    
+                    if (this.isHanging) {
+                        this.targetZ = config.hangHeight + this.baseZOffset;
+                        this.threadAlpha = Math.min(1, this.threadAlpha + dt * 2);
+                        
+                        // 动态滞后弯曲：顶部随转速拉动，重力及风阻导致绳子中段向上且向后弯曲
+                        const targetCtrlOffsetX = 70 * config.hangOrbitSpeed; // 滞后于旋转方向的弯曲
+                        const targetCtrlOffsetY = 150; // 向上的空气阻力
+                        this.ctrlVx += (targetCtrlOffsetX - this.ctrlX) * 10 * dt;
+                        this.ctrlVy += (targetCtrlOffsetY - this.ctrlY) * 10 * dt;
+                        this.ctrlVx *= 0.85;
+                        this.ctrlVy *= 0.85;
+                        this.ctrlX += this.ctrlVx * dt;
+                        this.ctrlY += this.ctrlVy * dt;
+                    }
+
+                    if (this.z <= this.targetZ) {
+                        if (this.isHanging) {
+                            this.state = 'hanging';
+                            // 触底轻微柔和反弹，力量被线段的弹力吸收
+                            const impactForce = this.zVelocity;
+                            this.zVelocity *= -0.05; 
+                            this.z = this.targetZ;
+                            
+                            this.vX += random(-1, 1) * Math.abs(impactForce) * 0.01;
+                            this.vY += random(-1, 1) * Math.abs(impactForce) * 0.01;
+                            
+                            this.ctrlVy -= impactForce * 0.05; 
+                        } else {
+                            this.state = 'floating';
+                            this.z = 0;
+                            ripples.push(new Ripple(basePos.x, basePos.baseY, random(45, 70)));
+                            for (let i = 0; i < 4; i++) {
+                                splashes.push(new SplashParticle(basePos.x, basePos.baseY));
+                            }
+                        }
+                    }
+                } else if (this.state === 'hanging') {
+                    this.targetZ = config.hangHeight + this.baseZOffset;
+                    
+                    const displacementZ = this.targetZ - this.z;
+                    const springForceZ = displacementZ * 12.0; 
+                    this.zVelocity += springForceZ * dt;
+                    this.zVelocity *= 0.75; 
+                    this.z += this.zVelocity * dt;
+
+                    const time = Date.now() * 0.001;
+                    const windForceX = Math.sin(time * 1.0 + this.radius * 0.01) * 3;
+                    const windForceY = Math.cos(time * 0.8 + this.angle) * 3;
+                    this.vX += windForceX * dt;
+                    this.vY += windForceY * dt;
+
+                    if (mouse.isDown && mouse.active) {
+                        let dx = (basePos.x + this.offsetX) - mouse.x;
+                        let dy = (basePos.y + this.offsetY) - mouse.y;
+                        let d = Math.sqrt(dx*dx + dy*dy);
+                        let interactionRadius = 120 * config.bounceRange;
+                        
+                        if (d < interactionRadius) {
+                            let influence = Math.pow((interactionRadius - d) / interactionRadius, 1.2);
+                            this.vX += mouse.vx * influence * 12.0 * dt;
+                            this.vY += mouse.vy * influence * 12.0 * dt;
+                            this.nodes.forEach(node => {
+                                node.selfAngularVelocity += mouse.vx * influence * 0.03;
+                            });
+                        }
+                    }
+
+                    let horizStiffness = 3.5; 
+                    this.vX -= horizStiffness * this.offsetX * dt;
+                    this.vY -= horizStiffness * this.offsetY * dt;
+                    this.vX *= 0.94; 
+                    this.vY *= 0.94;
+                    this.offsetX += this.vX * dt * 10;
+                    this.offsetY += this.vY * dt * 10;
+
+                    // 恒定状态下的柔软控制点（保留因旋转导致的滞后曲线）
+                    const targetCtrlOffsetX = -this.offsetX * 0.45 + 25 * config.hangOrbitSpeed; 
+                    const targetCtrlOffsetY = -this.offsetY * 0.45 + 10; 
+                    this.ctrlVx += (targetCtrlOffsetX - this.ctrlX) * 10 * dt;
+                    this.ctrlVy += (targetCtrlOffsetY - this.ctrlY) * 10 * dt;
+                    this.ctrlVx *= 0.85; 
+                    this.ctrlVy *= 0.85;
+                    this.ctrlX += this.ctrlVx * dt;
+                    this.ctrlY += this.ctrlVy * dt;
+
+                } else if (this.state === 'floating' || this.state === 'sinking') {
+                    const dist = Math.max(this.radius, 1);
+                    
+                    if (mouse.isDown && mouse.active && this.state === 'floating') {
+                        let dx = basePos.x - mouse.x;
+                        let dy = basePos.y - mouse.y;
+                        let d = Math.sqrt(dx*dx + dy*dy);
+                        let interactionRadius = 100 * config.bounceRange;
+                        if (d < interactionRadius) {
+                            let influence = (interactionRadius - d) / interactionRadius;
+                            this.radius += mouse.vy * influence * 0.5 * dt; 
+                            this.angle += (mouse.vx * influence * 0.05 * dt) / dist; 
+                        }
+                    }
+
+                    if (this.state === 'floating') {
+                        let proximity = Math.max(0, 1 - dist / 400); 
+                        let accelerationFactor = 1 + Math.pow(proximity, 3) * 12.0; 
+
+                        let angularSpeed = (20 / Math.pow(dist, 0.4)) * config.vortexSpeed * config.orbitSpeed * accelerationFactor; 
+                        let suctionPull = (10 + 150 / (dist + 50)) * config.vortexSpeed * config.inwardPull * accelerationFactor; 
+
+                        this.angle += angularSpeed * dt;
+                        this.radius -= suctionPull * dt;
+
+                        if (this.radius < 60) {
+                            this.state = 'sinking';
+                            this.zVelocity = -40; 
+                        }
+                    } else if (this.state === 'sinking') {
+                        this.radius -= 35 * dt; 
+                        if (this.radius < 2) this.radius = 2; 
+                        
+                        let angularSpeed = 12.0 * config.vortexSpeed; 
+                        this.angle += angularSpeed * dt;
+                        
+                        this.zVelocity -= 1400 * dt;
+                        this.z += this.zVelocity * dt;
+                    }
+
+                    if (this.z < -1000) {
+                        this.active = false;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (!this.active) return;
+                ctx.save();
+
+                const pos = project2D5(this.radius, this.angle, this.z);
+                
+                const depthFactor = (Math.sin(this.angle) + 1) / 2;
+                const minScale = 1.0 - (config.depthSize / 100);
+                const minAlpha = 1.0 - (config.depthOpacity / 100);
+                
+                const perspectiveScale = minScale + (1 - minScale) * depthFactor;
+                const perspectiveAlpha = minAlpha + (1 - minAlpha) * depthFactor;
+
+                const finalScale = Math.max(0.2, pos.depthScale) * perspectiveScale;
+                
+                let renderX = pos.x + this.offsetX;
+                let renderY = pos.y + this.offsetY;
+
+                let startX = renderX, startY = renderY, endX = renderX, endY = renderY;
+                let midX = renderX, midY = renderY;
+
+                if (this.isHanging) {
+                    ctx.beginPath();
+                    // 明显放大天顶系点的角度超前量，让底部呈现完美的滞后拖曳感
+                    const lagFactor = 0.18 * config.hangOrbitSpeed; 
+                    const skyPos = project2D5(this.radius, this.angle + lagFactor, Math.max(this.z, config.hangHeight) + 1500); 
+                    
+                    endX = skyPos.x;  
+                    endY = skyPos.y;
+                    
+                    const midBaseX = (startX + endX) / 2;
+                    const midBaseY = (startY + endY) / 2;
+                    midX = midBaseX + this.ctrlX;
+                    midY = midBaseY + this.ctrlY;
+                    
+                    ctx.moveTo(startX, startY);
+                    ctx.quadraticCurveTo(midX, midY, endX, endY);
+                    
+                    const threadGrad = ctx.createLinearGradient(startX, startY, endX, endY);
+                    threadGrad.addColorStop(0, `rgba(255, 255, 255, ${0.45 * this.threadAlpha * perspectiveAlpha})`);
+                    threadGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.strokeStyle = threadGrad;
+                    ctx.lineWidth = 0.8 * perspectiveScale;
+                    ctx.stroke();
+                } else if (this.state === 'falling') {
+                    ctx.beginPath();
+                    const oldZ = this.z - this.zVelocity * 0.05; 
+                    // 同样给予非悬挂下落线一点滞后角度差
+                    const oldPos = project2D5(this.radius, this.angle + (0.05 * config.hangOrbitSpeed), oldZ);
+                    ctx.moveTo(renderX, renderY);
+                    ctx.lineTo(oldPos.x, oldPos.y);
+                    
+                    const tailGrad = ctx.createLinearGradient(renderX, renderY, oldPos.x, oldPos.y);
+                    tailGrad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * perspectiveAlpha})`);
+                    tailGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.strokeStyle = tailGrad;
+                    ctx.lineWidth = 1.8 * perspectiveScale;
+                    ctx.stroke();
+                }
+
+                let finalAlpha = this.state === 'sinking' ? Math.min(1, Math.max(0, (this.z + 500) / 500)) : 1.0;
+                finalAlpha *= perspectiveAlpha; 
+                
+                // 判断是否是处于水面/沉没状态的淹没渲染判定
+                const isSubmerged = (this.state === 'floating' || this.state === 'sinking');
+
+                this.nodes.forEach(node => {
+                    let nX = renderX, nY = renderY;
+                    
+                    if (this.isHanging && node.heightRatio > 0) {
+                        const t = node.heightRatio; 
+                        const invT = 1 - t;
+                        nX = invT * invT * startX + 2 * invT * t * midX + t * t * endX;
+                        nY = invT * invT * startY + 2 * invT * t * midY + t * t * endY;
+                    } else if (this.state === 'falling' && node.heightRatio > 0) {
+                        const oldZ = this.z - this.zVelocity * 0.05; 
+                        const oldPos = project2D5(this.radius, this.angle + (0.05 * config.hangOrbitSpeed), oldZ);
+                        nX = renderX + (oldPos.x - renderX) * (node.heightRatio * 1.5);
+                        nY = renderY + (oldPos.y - renderY) * (node.heightRatio * 1.5);
+                    }
+
+                    if (!this.isHanging && this.state !== 'falling' && node.heightRatio > 0) {
+                        return;
+                    }
+
+                    const currentSize = config.meteorSize * node.sizeRatio;
+                    const flipScale = this.isHanging ? Math.cos(node.selfAngle) : 1.0;
+                    const rotation = this.vX * 0.01;
+
+                    if (node.shape === 'star') {
+                        drawStar(ctx, nX, nY, currentSize * finalScale, finalAlpha, config.meteorRgb, rotation, flipScale, isSubmerged);
+                    } else {
+                        drawMoon(ctx, nX, nY, currentSize * finalScale, finalAlpha, config.meteorRgb, rotation, flipScale, isSubmerged);
+                    }
+                });
+
+                ctx.restore();
+            }
+        }
+
+        const initCanvas = () => {
+            const dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth || 300;
+            height = Math.max(1, window.innerHeight || 300);
+            cx = width / 2;
+            cy = height / 2 + 30;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+        };
+
+        const initParticles = () => {
+            meteors = [];
+            ripples = [];
+            splashes = [];
+            rainDrops = [];
+        };
+
+        const drawVortexFunnelDepression = () => {
+            ctx.save();
+            const stepRadius = 30;
+            const maxR = 450 * 1.35;
+            
+            for (let r = 20; r < maxR; r += stepRadius) {
+                const pos = project2D5(r, 0, 0);
+                const normR = r / 450;
+                const alpha = Math.max(0.01, 0.18 * (1 - normR * 0.6));
+                
+                ctx.beginPath();
+                ctx.ellipse(cx, cy + pos.funnelDepth, r, r * (config.viewTilt + 0.12 * Math.min(1, normR)), 0, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        };
+
+        let lastTime = 0;
+        const render = (time) => {
+            const dt = Math.min(0.05, (time - lastTime) / 1000 || 0.016);
+            lastTime = time;
+
+            if (mouse.active) {
+                mouse.vx = (mouse.x - mouse.lastX) / dt;
+                mouse.vy = (mouse.y - mouse.lastY) / dt;
+            } else {
+                mouse.vx = 0; mouse.vy = 0;
+            }
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+            mouse.vx *= 0.5;
+            mouse.vy *= 0.5;
+
+            const safeHeight = Math.max(10, height);
+            const grad = ctx.createLinearGradient(0, 0, 0, safeHeight);
+            grad.addColorStop(0, config.bg1);
+            grad.addColorStop(1, config.bg2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, safeHeight);
+
+            if (config.rainIntensity > 0) {
+                rainAccumulator += config.rainIntensity * 1.5 * dt;
+                while (rainAccumulator >= 1) {
+                    rainDrops.push(new RainDrop());
+                    rainAccumulator -= 1;
+                }
+            }
+
+            if (isMeteorShowerActive) {
+                meteorShowerTimer -= dt;
+                if (meteorShowerTimer <= 0) {
+                    isMeteorShowerActive = false;
+                } else {
+                    const spawnRate = config.meteorCount / config.meteorDuration;
+                    meteorSpawnAccumulator += spawnRate * dt;
+                    while (meteorSpawnAccumulator >= 1) {
+                        meteors.push(new MeteorParticle());
+                        meteorSpawnAccumulator -= 1;
+                    }
+                }
+            }
+
+            drawVortexFunnelDepression();
+
+            for (let i = rainDrops.length - 1; i >= 0; i--) {
+                rainDrops[i].update(dt);
+                rainDrops[i].draw(ctx);
+                if (!rainDrops[i].active) rainDrops.splice(i, 1);
+            }
+
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].update(dt);
+                ripples[i].draw(ctx);
+                if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+            }
+
+            for (let i = splashes.length - 1; i >= 0; i--) {
+                splashes[i].update(dt);
+                splashes[i].draw(ctx);
+                if (splashes[i].alpha <= 0) splashes.splice(i, 1);
+            }
+
+            for (let i = meteors.length - 1; i >= 0; i--) {
+                meteors[i].update(dt);
+                meteors[i].draw(ctx);
+                if (!meteors[i].active) {
+                    meteors.splice(i, 1);
+                }
+            }
+
+            if (customCursorImg && mouse.active) {
+                ctx.save();
+                const w = config.cursorSize * cursorImgRatio;
+                const h = config.cursorSize;
+                ctx.drawImage(customCursorImg, mouse.x - w/2, mouse.y - h/2, w, h);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(render);
+        };
+
+        window.addEventListener('resize', initCanvas);
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            mouse.isDown = true;
+            mouse.lastX = e.clientX;
+            mouse.lastY = e.clientY;
+            
+            ripples.push(new Ripple(e.clientX, e.clientY, 65));
+            for (let i = 0; i < 4; i++) {
+                splashes.push(new SplashParticle(e.clientX, e.clientY));
+            }
+        });
+        
+        window.addEventListener('mouseup', () => {
+            mouse.isDown = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            mouse.active = false;
+            mouse.isDown = false;
+        });
+
+        document.getElementById('meteor-btn').addEventListener('click', () => {
+            if (!isMeteorShowerActive) {
+                isMeteorShowerActive = true;
+                meteorShowerTimer = config.meteorDuration;
+                meteorSpawnAccumulator = 0;
+            }
+        });
+
+        uiToggleBtn.addEventListener('click', () => {
+            isPanelOpen = !isPanelOpen;
+            if (isPanelOpen) {
+                uiPanel.classList.remove('panel-leave');
+                uiPanel.classList.add('panel-enter');
+                iconMenu.classList.add('opacity-0', 'scale-50', 'rotate-90');
+                iconClose.classList.add('opacity-100', 'scale-100', 'rotate-0');
+            } else {
+                uiPanel.classList.remove('panel-enter');
+                uiPanel.classList.add('panel-leave');
+                iconMenu.classList.remove('opacity-0', 'scale-50', 'rotate-90');
+                iconClose.classList.remove('opacity-100', 'scale-100', 'rotate-0');
+            }
+        });
+
+        const bindInput = (id, key, labelId = null, suffix = '') => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                const isRange = e.target.type === 'range';
+                config[key] = isRange ? parseFloat(e.target.value) : e.target.value;
+                if (labelId) document.getElementById(labelId).innerText = e.target.value + suffix;
+            });
+        };
+
+        bindInput('bg-color-1', 'bg1');
+        bindInput('bg-color-2', 'bg2');
+        bindInput('view-tilt', 'viewTilt', 'view-tilt-val');
+        bindInput('vortex-speed', 'vortexSpeed', 'speed-val', 'x');
+        bindInput('orbit-speed', 'orbitSpeed', 'orbit-speed-val', 'x');
+        bindInput('inward-pull', 'inwardPull', 'inward-pull-val', 'x');
+        
+        bindInput('rain-intensity', 'rainIntensity', 'rain-intensity-val');
+        bindInput('rain-thickness', 'rainThickness', 'rain-thickness-val', 'px');
+        bindInput('hang-orbit-speed', 'hangOrbitSpeed', 'hang-orbit-speed-val', 'x');
+        bindInput('hang-radius', 'hangRadius', 'hang-radius-val', 'px'); 
+        
+        bindInput('meteor-count', 'meteorCount', 'meteor-count-val');
+        bindInput('meteor-size', 'meteorSize', 'meteor-size-val', 'px');
+        bindInput('meteor-hang', 'hangPercent', 'meteor-hang-val', '%');
+        bindInput('hang-height', 'hangHeight', 'hang-height-val', 'px');
+        bindInput('depth-size', 'depthSize', 'depth-size-val', '%');
+        bindInput('depth-opacity', 'depthOpacity', 'depth-opacity-val', '%');
+        bindInput('bounce-range', 'bounceRange', 'bounce-range-val', 'x');
+        bindInput('cursor-size', 'cursorSize', 'cursor-size-val', 'px');
+
+        document.getElementById('meteor-color').addEventListener('input', (e) => {
+            config.meteorColor = e.target.value;
+            config.meteorRgb = hexToRgbStr(e.target.value);
+        });
+
+        document.getElementById('cursor-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        customCursorImg = img;
+                        cursorImgRatio = img.width / img.height;
+                        canvas.classList.remove('cursor-crosshair');
+                        canvas.style.cursor = 'none';
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        const syncUI = () => {
+            document.getElementById('bg-color-1').value = config.bg1;
+            document.getElementById('bg-color-2').value = config.bg2;
+            document.getElementById('view-tilt').value = config.viewTilt;
+            document.getElementById('view-tilt-val').innerText = config.viewTilt;
+            document.getElementById('vortex-speed').value = config.vortexSpeed;
+            document.getElementById('speed-val').innerText = config.vortexSpeed + 'x';
+            document.getElementById('orbit-speed').value = config.orbitSpeed;
+            document.getElementById('orbit-speed-val').innerText = config.orbitSpeed + 'x';
+            document.getElementById('inward-pull').value = config.inwardPull;
+            document.getElementById('inward-pull-val').innerText = config.inwardPull + 'x';
+            
+            document.getElementById('rain-intensity').value = config.rainIntensity;
+            document.getElementById('rain-intensity-val').innerText = config.rainIntensity;
+            document.getElementById('rain-thickness').value = config.rainThickness;
+            document.getElementById('rain-thickness-val').innerText = config.rainThickness + 'px';
+            document.getElementById('hang-orbit-speed').value = config.hangOrbitSpeed;
+            document.getElementById('hang-orbit-speed-val').innerText = config.hangOrbitSpeed + 'x';
+            document.getElementById('hang-radius').value = config.hangRadius;
+            document.getElementById('hang-radius-val').innerText = config.hangRadius + 'px';
+            
+            document.getElementById('meteor-count').value = config.meteorCount;
+            document.getElementById('meteor-count-val').innerText = config.meteorCount;
+            document.getElementById('meteor-size').value = config.meteorSize;
+            document.getElementById('meteor-size-val').innerText = config.meteorSize + 'px';
+            document.getElementById('meteor-hang').value = config.hangPercent;
+            document.getElementById('meteor-hang-val').innerText = config.hangPercent + '%';
+            document.getElementById('hang-height').value = config.hangHeight;
+            document.getElementById('hang-height-val').innerText = config.hangHeight + 'px';
+            
+            document.getElementById('depth-size').value = config.depthSize;
+            document.getElementById('depth-size-val').innerText = config.depthSize + '%';
+            document.getElementById('depth-opacity').value = config.depthOpacity;
+            document.getElementById('depth-opacity-val').innerText = config.depthOpacity + '%';
+            
+            document.getElementById('bounce-range').value = config.bounceRange;
+            document.getElementById('bounce-range-val').innerText = config.bounceRange + 'x';
+            
+            document.getElementById('meteor-color').value = config.meteorColor;
+            document.getElementById('cursor-size').value = config.cursorSize;
+            document.getElementById('cursor-size-val').innerText = config.cursorSize + 'px';
+        };
+
+        document.getElementById('reset-canvas-btn').addEventListener('click', initParticles);
+        document.getElementById('reset-params-btn').addEventListener('click', () => {
+            Object.assign(config, JSON.parse(JSON.stringify(defaultConfig)));
+            syncUI();
+            customCursorImg = null;
+            document.getElementById('cursor-upload').value = '';
+            canvas.classList.add('cursor-crosshair');
+            canvas.style.cursor = '';
+        });
+
+        const boot = () => {
+            initCanvas();
+            initParticles();
+            iconClose.classList.add('opacity-0', 'scale-50', '-rotate-90');
+            render(0);
+        };
+
+        boot();
     </script>
 </body>
 </html>
